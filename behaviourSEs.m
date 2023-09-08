@@ -2,8 +2,7 @@
 
 close all; clear;
 
-% addpath('D:\group_swinderen\Dinis\Scripts\Global functions\');
-% addpath('D:\group_swinderen\Dinis\Scripts\Indexes and legends\');
+addpath('./Functions');
 
 %% import data
 
