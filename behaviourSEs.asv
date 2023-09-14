@@ -46,3 +46,4 @@ end
 
 create_seq_eff_plot(SEProfile(seq_eff_order(5)),[],'errors',SEMSEs);
 
+%% perform 

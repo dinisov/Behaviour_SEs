@@ -75,10 +75,8 @@ load('binomial_x_labels_latex_alt_rep.mat','binomial_x_labels_latex');
 %this is just to help turn horizontal sequences into vertical ones
 ind_horiz = sub2ind(size(binomial_x_labels_latex{1}),1:4,[1 1 1 5]);
 
-nBins = 5;
-
 for seq = 1:16
    subplot(4,4,seq);
-   histogram(dataSeq{seq},nBins);
+   hostogram(dataSeq{seq});
    title(binomial_x_labels_latex{seq}(ind_horiz));
 end
