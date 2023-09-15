@@ -50,7 +50,9 @@ for seq = 1:16
     SEMSEs(seq) = std(dataSeq{seq})/sqrt(nSeq(seq));
 end
 
-create_seq_eff_plot(SEProfile(seq_eff_order(5)),[],'errors',SEMSEs);
+dataSeq = dataSeq(seq_eff_order(5));
+
+create_seq_eff_plot(SEProfile(seq_eff_order(5)),[],'errors',SEMSEs(seq_eff_order(5)));
 
 %% perform ANOVA, show global fixTime distribution, and distributions per sequence
 
