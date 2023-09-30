@@ -32,7 +32,7 @@ thisFlyData = datas{fly};
 % data = data(data(:,10) > 0,:);
 
 %starting points of inter-stimulus periods (careful this is actually the index just before the start)
-% last trial is usually interrputed so get rid of last four (this may fail is experiment is interrputed during open loop)
+% last trial is usually interrupted so get rid of last four (this may fail is experiment is interrputed during open loop)
 interStimulusStart = find(diff(thisFlyData(:,4) == 200) == 1); interStimulusStart = interStimulusStart(1:end-4);
 interStimulusEnd = find(diff(thisFlyData(:,4) == 200) == -1); interStimulusEnd = interStimulusEnd(1:end-4);
 
@@ -120,7 +120,7 @@ for fly = 1:nFlies
    
 end
 
-%% calculate SEs Scott's way
+%% calculate SEs for each fly
 
 %SCOTT: THIS SHOULD BE EASY TO MODIFY SO MULTIPLE FLIES ARE CONCATENATED
 %ALSO CALCULATIONS SHOULD BE ANALOGOUS FOR ANY OTHER MEASURES
@@ -129,11 +129,81 @@ for fly = 1:nFlies
     fixTimes = R(fly).fixTimes;
     fixTimes = fixTimes(~badTrials,:);
     fixTimes(fixTimes == 0) = NaN;
+    
     meanFixTimes = nanmean(fixTimes);
+    medianFixTimes = nanmedian(fixTimes);
+    
     stdFixTimes = std(fixTimes,[],1,'omitnan');
     nFixTimes = sum(~isnan(fixTimes), 1);
     semFixTimes = stdFixTimes ./ sqrt(nFixTimes);
     
-    create_seq_eff_plot(meanFixTimes.',[],'errors',semFixTimes.');
+    R(fly).nFixTimes = nFixTimes;
+    R(fly).meanFixTimes = meanFixTimes;
+    R(fly).semFixTimes = semFixTimes;
+    R(fly).medianFixTimes = medianFixTimes;
+    
+    figure; create_seq_eff_plot(meanFixTimes.',[],'errors',semFixTimes.'); title(['Mean Fix Time Fly ' num2str(fly)]);
+    figure; create_seq_eff_plot(medianFixTimes.',[],'errors',semFixTimes.'); title(['Median Fix Time Fly ' num2str(fly)]);
     
 end
+
+%% calculate SEs for all flies using superfly method (concatenate)
+fixTimesAllFlies = cell(nFlies,1);
+badTrialsAllFlies = cell(nFlies,1);
+for fly = 1:nFlies
+    fixTimesAllFlies{fly} = R(fly).fixTimes;
+    badTrialsAllFlies{fly} = R(fly).badTrials;
+end
+
+fixTimesAllFlies = cell2mat(fixTimesAllFlies);
+badTrialsAllFlies = cell2mat(badTrialsAllFlies);
+
+fixTimesAllFlies = fixTimesAllFlies(~badTrialsAllFlies,:);
+fixTimesAllFlies(fixTimesAllFlies == 0) = NaN;
+
+nFixTimesAllFlies = sum(~isnan(fixTimesAllFlies), 1);
+
+meanFixTimesAllFlies = nanmean(fixTimesAllFlies);
+medianFixTimesAllFlies = nanmedian(fixTimesAllFlies);
+
+stdFixTimesAllFlies = std(fixTimesAllFlies,[],1,'omitnan');
+nFixTimes = sum(~isnan(fixTimesAllFlies), 1);
+semFixTimesAllFlies = stdFixTimesAllFlies ./ sqrt(nFixTimesAllFlies);
+
+figure; create_seq_eff_plot(meanFixTimesAllFlies.',[],'errors',semFixTimesAllFlies.');
+figure; create_seq_eff_plot(medianFixTimesAllFlies.',[],'errors',semFixTimesAllFlies.');
+
+%% calculate SEs for all flies using averaging of profiles method (no weighting)
+allProfilesMean = zeros(nFlies,16);
+allProfilesMedian = zeros(nFlies,16);
+
+for fly = 1:nFlies
+    allProfilesMean(fly,:) = R(fly).meanFixTimes;
+    allProfilesMedian(fly,:) = R(fly).medianFixTimes;
+end
+
+% this does not weigh by the number of data points for each fly
+% taking the mean of the means or medians here as the median of a few
+% points is heavily skewed; error is just std of the means/medians
+figure; create_seq_eff_plot(nanmean(allProfilesMean).',[],'errors',std(allProfilesMean,[],1,'omitnan').'./sqrt(nFlies));
+figure; create_seq_eff_plot(nanmean(allProfilesMedian).',[],'errors',std(allProfilesMedian,[],1,'omitnan').'./sqrt(nFlies));
+
+%% calculate SEs for all flies using averaging of profiles method (weighted, propagated error)
+allProfilesMean = zeros(nFlies,16);
+allProfilesMedian = zeros(nFlies,16);
+semFixTimesAllFlies = zeros(nFlies,16);
+nFixTimesAllFlies = zeros(1,nFlies);
+for fly = 1:nFlies
+    nFixTimesAllFlies(fly) = sum(R(fly).nFixTimes);
+    allProfilesMean(fly,:) = R(fly).meanFixTimes * nFixTimesAllFlies(fly);
+    allProfilesMedian(fly,:) = R(fly).medianFixTimes * nFixTimesAllFlies(fly);
+    
+    % part of the propagation error calculation
+    semFixTimesAllFlies(fly,:) = R(fly).semFixTimes.^2 * nFixTimesAllFlies(fly).^2;
+end
+
+% finish propagation of error calculation
+semFixTimesAllFlies = sqrt(sum(semFixTimesAllFlies/(sum(nFixTimesAllFlies)^2),1));
+
+figure; create_seq_eff_plot(nansum(allProfilesMean).'./sum(nFixTimesAllFlies),[],'errors',semFixTimesAllFlies.');
+figure; create_seq_eff_plot(nansum(allProfilesMedian).'./sum(nFixTimesAllFlies),[],'errors',semFixTimesAllFlies.');
