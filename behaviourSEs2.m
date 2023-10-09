@@ -150,6 +150,8 @@ for fly = 1:nFlies
     
     plotIsomersBehav(FLIES(fly).fixTimes32);
     
+    SEAnovaBehav(FLIES(fly).fixTimes);
+     
 end
 
 %% calculate SEs for all flies using superfly method (concatenate)
@@ -171,6 +173,8 @@ figure; create_seq_eff_plot(RAllFlies.medianFixTimes.',[],'errors',RAllFlies.sem
 
 plotIsomersBehav(fixTimesAllFlies32);
 
+SEAnovaBehav(fixTimesAllFlies);
+
 %% calculate SEs for all flies using averaging of profiles method (no weighting)
 allProfilesMean = zeros(nFlies,16);
 allProfilesMedian = zeros(nFlies,16);
@@ -185,6 +189,8 @@ end
 % points is heavily skewed; error is just std of the means/medians
 figure; create_seq_eff_plot(nanmean(allProfilesMean).',[],'errors',std(allProfilesMean,[],1,'omitnan').'./sqrt(nFlies));
 figure; create_seq_eff_plot(nanmean(allProfilesMedian).',[],'errors',std(allProfilesMedian,[],1,'omitnan').'./sqrt(nFlies));
+
+SEAnovaBehav(allProfilesMean);
 
 %% calculate SEs for all flies using averaging of profiles method (weighted, propagated error)
 allProfilesMean = zeros(nFlies,16);
@@ -205,3 +211,5 @@ semFixTimesAllFlies = sqrt(sum(semFixTimesAllFlies/(sum(nFixTimesAllFlies)^2),1)
 
 figure; create_seq_eff_plot(nansum(allProfilesMean).'./sum(nFixTimesAllFlies),[],'errors',semFixTimesAllFlies.');
 figure; create_seq_eff_plot(nansum(allProfilesMedian).'./sum(nFixTimesAllFlies),[],'errors',semFixTimesAllFlies.');
+
+SEAnovaBehav(allProfilesMean);
