@@ -32,16 +32,24 @@ thisFlyData = datas{fly};
 % data = data(data(:,10) > 0,:);
 
 %starting points of inter-stimulus periods (careful this is actually the index just before the start)
-% last trial is usually interrupted so get rid of last four (this may fail is experiment is interrputed during open loop)
+% last trial is usually interrupted so get rid of last four (this may fail is experiment is interrupted during open loop)
 interStimulusStart = find(diff(thisFlyData(:,4) == 200) == 1); interStimulusStart = interStimulusStart(1:end-4);
 interStimulusEnd = find(diff(thisFlyData(:,4) == 200) == -1); interStimulusEnd = interStimulusEnd(1:end-4);
 
 nTrials = (length(interStimulusStart)/4);
 
+% littleBit = interStimulusStart(2) - interStimulusEnd(1);
+% 
+% openLoopStart = interStimulusStart - littleBit;
+% openLoopStart = reshape(openLoopStart,[4,nTrials]);
+% openLoopStart = openLoopStart(1,:);
+% 
+% figure; plot(FLIES(end).barPosition); hold on; plot(openLoopStart,zeros(size(openLoopStart)),'.','markersize',20);
+
 %%  infer trial sequence
 stimuli = zeros(nTrials,5);
 
-% figure out first four (open loop) stimuli (gets rid of last four inte)
+% figure out first four (open loop) stimuli
 stimuli(:,1:4) = reshape(sign(thisFlyData(interStimulusStart,4)),[4,nTrials]).';
 
 %figure out last (close loop) stimulus
@@ -62,12 +70,9 @@ end
 
 %% analyse data (this assumes a sampling rate of 200 Hz)
 
-% matrix to put results in
-R = struct;
-
 % groups (1,32),(2,31),(3,30), etc, as representing the same pattern
 % avoids very costly flip() operations later
-auxSeq = [1:16 16:-1:1];
+% auxSeq = [1:16 16:-1:1];
 
 for fly = 1:nFlies
     
@@ -87,7 +92,7 @@ for fly = 1:nFlies
     badTrials = zeros(nTrials,1);
     
     for trial = 1:thisFly.nTrials
-        seq = auxSeq(bin2dec(num2str(thisFly.stimuli(trial,1:5) > 0)) + 1);
+        seq = bin2dec(num2str(thisFly.stimuli(trial,1:5) > 0)) + 1;
         
         thisTrace = thisFly.barPosition(thisFly.closedLoopStart(trial):thisFly.closedLoopStart(trial)+799);
         
@@ -111,67 +116,60 @@ for fly = 1:nFlies
         %scottsMatrix(trial, seq) = *some calculation*
             
     end
+    
+    % get rid of bad trials here so no need to do it downstream
+    fixTimes = fixTimes(~badTrials,:);
+    tracesSEQ = tracesSEQ(:,:,~badTrials);
+    
+    
+    FLIES(fly).fixTimes32 = fixTimes;% store original 32-long matrix for isomer calculations
+    
+    % group by pattern and reduce to 16 sequences
+    tracesSEQ = tracesSEQ + flip(tracesSEQ,2);
+    tracesSEQ = tracesSEQ(:,1:16,:);
+    
+    fixTimes = fixTimes + flip(fixTimes,2);
+    fixTimes = fixTimes(:,1:16);
 
     % better reorder here so everything downstream is according to
     % literature
-    R(fly).tracesSEQ = tracesSEQ(:,seq_eff_order(5),:);
-    R(fly).fixTimes = fixTimes(:,seq_eff_order(5));
-    R(fly).badTrials = badTrials;
+    FLIES(fly).tracesSEQ = tracesSEQ(:,seq_eff_order(5),:);
+    FLIES(fly).fixTimes = fixTimes(:,seq_eff_order(5));
+    FLIES(fly).badTrials = badTrials;
    
 end
 
-%% calculate SEs for each fly
+%% calculate SEs for each fly individually
 
-%SCOTT: THIS SHOULD BE EASY TO MODIFY SO MULTIPLE FLIES ARE CONCATENATED
-%ALSO CALCULATIONS SHOULD BE ANALOGOUS FOR ANY OTHER MEASURES
 for fly = 1:nFlies
-   
-    fixTimes = R(fly).fixTimes;
-    fixTimes = fixTimes(~badTrials,:);
-    fixTimes(fixTimes == 0) = NaN;
     
-    meanFixTimes = nanmean(fixTimes);
-    medianFixTimes = nanmedian(fixTimes);
+    R(fly) = calculateSEsBehav(FLIES(fly).fixTimes); %#ok<SAGROW>
     
-    stdFixTimes = std(fixTimes,[],1,'omitnan');
-    nFixTimes = sum(~isnan(fixTimes), 1);
-    semFixTimes = stdFixTimes ./ sqrt(nFixTimes);
+    figure; create_seq_eff_plot(R(fly).meanFixTimes.',[],'errors',R(fly).semFixTimes.'); title(['Mean Fix Time Fly ' num2str(fly)]);
+    figure; create_seq_eff_plot(R(fly).medianFixTimes.',[],'errors',R(fly).semFixTimes.'); title(['Median Fix Time Fly ' num2str(fly)]);
     
-    R(fly).nFixTimes = nFixTimes;
-    R(fly).meanFixTimes = meanFixTimes;
-    R(fly).semFixTimes = semFixTimes;
-    R(fly).medianFixTimes = medianFixTimes;
-    
-    figure; create_seq_eff_plot(meanFixTimes.',[],'errors',semFixTimes.'); title(['Mean Fix Time Fly ' num2str(fly)]);
-    figure; create_seq_eff_plot(medianFixTimes.',[],'errors',semFixTimes.'); title(['Median Fix Time Fly ' num2str(fly)]);
+    plotIsomersBehav(FLIES(fly).fixTimes32);
     
 end
 
 %% calculate SEs for all flies using superfly method (concatenate)
 fixTimesAllFlies = cell(nFlies,1);
+fixTimesAllFlies32 = cell(nFlies,1);
 badTrialsAllFlies = cell(nFlies,1);
 for fly = 1:nFlies
-    fixTimesAllFlies{fly} = R(fly).fixTimes;
-    badTrialsAllFlies{fly} = R(fly).badTrials;
+    fixTimesAllFlies{fly} = FLIES(fly).fixTimes;
+    fixTimesAllFlies32{fly} = FLIES(fly).fixTimes32;
 end
 
 fixTimesAllFlies = cell2mat(fixTimesAllFlies);
-badTrialsAllFlies = cell2mat(badTrialsAllFlies);
+fixTimesAllFlies32 = cell2mat(fixTimesAllFlies32);
 
-fixTimesAllFlies = fixTimesAllFlies(~badTrialsAllFlies,:);
-fixTimesAllFlies(fixTimesAllFlies == 0) = NaN;
+RAllFlies = calculateSEsBehav(fixTimesAllFlies);
 
-nFixTimesAllFlies = sum(~isnan(fixTimesAllFlies), 1);
+figure; create_seq_eff_plot(RAllFlies.meanFixTimes.',[],'errors',RAllFlies.semFixTimes.');
+figure; create_seq_eff_plot(RAllFlies.medianFixTimes.',[],'errors',RAllFlies.semFixTimes.');
 
-meanFixTimesAllFlies = nanmean(fixTimesAllFlies);
-medianFixTimesAllFlies = nanmedian(fixTimesAllFlies);
-
-stdFixTimesAllFlies = std(fixTimesAllFlies,[],1,'omitnan');
-nFixTimes = sum(~isnan(fixTimesAllFlies), 1);
-semFixTimesAllFlies = stdFixTimesAllFlies ./ sqrt(nFixTimesAllFlies);
-
-figure; create_seq_eff_plot(meanFixTimesAllFlies.',[],'errors',semFixTimesAllFlies.');
-figure; create_seq_eff_plot(medianFixTimesAllFlies.',[],'errors',semFixTimesAllFlies.');
+plotIsomersBehav(fixTimesAllFlies32);
 
 %% calculate SEs for all flies using averaging of profiles method (no weighting)
 allProfilesMean = zeros(nFlies,16);
