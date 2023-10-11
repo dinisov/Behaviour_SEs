@@ -83,7 +83,7 @@ for fly = 1:nFlies
     tracesSEQ = zeros(800,16,nTrials);
     
     %matrix to store fixation times (calculated for each epoch individually)
-    fixTimes = zeros(nTrials,31);
+    fixTimes = zeros(nTrials,32);
     
     %SCOTT: YOU CAN ADD A MATRIX FOR A NEW MEASURE HERE
     %scottsMatrix = zeros(nTrials,16);
