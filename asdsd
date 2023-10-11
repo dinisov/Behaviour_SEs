@@ -1,0 +1,65 @@
+[33mcommit 3d93f87b42b2861e8552267a5e699cfd9aeed2f5[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m)[m
+Author: dinisov <dgokaydin@gmail.com>
+Date:   Wed Oct 11 10:14:34 2023 +1000
+
+    Fixed 31 sometimes
+
+[33mcommit 8a74a43ce28d41f759f1d50a5b5123f2e452ae8d[m
+Author: dinisov <dgokaydin@gmail.com>
+Date:   Mon Oct 9 10:38:48 2023 +1000
+
+    Added ANOVA
+
+[33mcommit 06a94ea45a8c582591abf380143fa9b154bd31cb[m
+Author: dinisov <dgokaydin@gmail.com>
+Date:   Mon Oct 9 10:02:32 2023 +1000
+
+    Reorganised and added isomer plots
+
+[33mcommit 59af81c944968543ffb68e8afe54366b5f697e8d[m
+Author: dinisov <dgokaydin@gmail.com>
+Date:   Sat Sep 30 11:35:55 2023 +1000
+
+    Grouped fly calculations (different methods)
+
+[33mcommit 309cf6537a52c05b05acee864be273ccc2e048f9[m
+Author: dinisov <dgokaydin@gmail.com>
+Date:   Fri Sep 15 22:56:47 2023 +1000
+
+    Full traces script
+
+[33mcommit e2831c02a9cfb57fe887ed367998f3bfe7413f4c[m
+Author: dinisov <dgokaydin@gmail.com>
+Date:   Thu Sep 14 14:14:31 2023 +1000
+
+    Fix time histograms and ANOVA
+
+[33mcommit 9ab3924c8b813165eb8cf21b383b96dee395cdc4[m
+Author: dinisov <dgokaydin@gmail.com>
+Date:   Thu Sep 14 10:39:03 2023 +1000
+
+    Added hack version
+
+[33mcommit 08a40bd6484da9ae034585f9938cb21697983a96[m
+Author: dinisov <dgokaydin@gmail.com>
+Date:   Fri Sep 8 13:50:51 2023 +1000
+
+    Fixed path and missing functions
+
+[33mcommit 0344072bf926261cf565132a4198bf41fb5e6c2b[m
+Author: dinisov <dgokaydin@gmail.com>
+Date:   Fri Sep 8 10:08:36 2023 +1000
+
+    Added readme
+
+[33mcommit ddcb7805d91bc6cc1705b2c1da8727b69c0aeb3a[m
+Author: dinisov <dgokaydin@gmail.com>
+Date:   Fri Sep 8 10:05:06 2023 +1000
+
+    Added plotting stuff
+
+[33mcommit aa7d9a4bc3564591388ada13c1db5989cc8dee0b[m
+Author: dinisov <dgokaydin@gmail.com>
+Date:   Fri Sep 8 09:59:29 2023 +1000
+
+    First commit
