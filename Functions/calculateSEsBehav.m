@@ -9,6 +9,7 @@ function R = calculateSEsBehav(fixTimes)
     
     stdFixTimes = std(fixTimes,[],1,'omitnan');
     nFixTimes = sum(~isnan(fixTimes), 1);
+    nFixTimes(isnan(nFixTimes)) = 0;
     semFixTimes = stdFixTimes ./ sqrt(nFixTimes);
     
     R.nFixTimes = nFixTimes;

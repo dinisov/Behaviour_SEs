@@ -1,5 +1,5 @@
 %Fixation Analysis
-
+% Generates a histogram and position vs time plot for all files in dir('./Fix')
 close all; clear;
 addpath('./Functions');
 
@@ -101,9 +101,10 @@ for w = 1:3
     plotSEM(:,w) = semFix.';
 end
 
+
 %% Plot Combined
 figure; errorbar(repmat((3:3:30).',[1 3]),plotData,plotSEM); xlim([0 33]);
-set(gca,'xtick',3:3:30,'ytick',.3:.1:1,'yticklabel',30:10:100); ylabel('Percentage'); xlabel('time (s)'); title('Learning Fixation');
+set(gca,'xtick',3:3:30,'ytick',.3:.1:1,'yticklabel',30:10:100); ylabel('Bar Position within window (%)'); xlabel('time (s)'); title('Fixation vs Time'); legend('+/-20deg','+/-30deg','+/-40deg','Location','southeast','FontSize',14); 
 % ylim([0 1]);
 
 %% position Histogram of all data
@@ -117,7 +118,7 @@ positionAllFlies = cell2mat(positionAllFlies);
 
 % RT of all trials
 fiXPosArray = nonzeros(positionAllFlies(:,:));
-figure;histogram(fiXPosArray,'NumBins', 30); title('Bar Position During Learning');  xlabel('Position (deg)'); xlim([-180 180]);
+figure;histogram(fiXPosArray,'NumBins', 30); title('Bar Position');  xlabel('Position (deg)'); xlim([-180 180]);%title('Bar Position During Learning');
 set(gca,'xtick',-180:30:180); 
 
 %% Save Data
