@@ -3,16 +3,18 @@ close all; clear;
 addpath('./Functions');
 
 %% parameters
-limitAngle = 90;             %degrees
-windowRT = 40;              %degrees
+limitAngle = 90;            %degrees
+windowRT = 45;              %degrees
 refixQualTime = 300;        %loops
 endTrace = 792;             %loops
-limitReQual = windowRT +10;   %degrees
+limitReQual = windowRT +0;   %degrees
 timeOut = 4000;             %ms
 
-enRT = 0;                   %Enable RT PLots
+enRT = 1;                   %Enable RT PLots
 enMedRT = 0;                %Enable median isomer RT PLots
 enQTplot = 1;               %Enable QT vs trial plot
+enPlot4x4indiv =0;          %Enable 4x4 histogram plot individual experiments
+enPlot4x4super = 1;         %Enable 4x4 histogram plot of super fly
 
 %% import data
 files = dir('./Data2');
@@ -99,7 +101,7 @@ qualTimeArray(~logical(qualTimeArray)) = nan;
 aux_x = cell(nFlies,1);
 aux_y = cell(nFlies,1);
 
-if(enQTplot)
+if(enQTplot)    % switch at top of file
     figure; hold on;
     for i = 1:nFlies
         plot(qualTimeArray(qualTimeArray(:,i) < 60000,i),'b.');
@@ -111,8 +113,8 @@ if(enQTplot)
     [p,s] = polyfit(x,y,1);
     f = polyval(p,1:120);
 
-    plot(1:120,f,'r');%formatSpec = '%d';
-    xlabel('Trial'); ylabel('Qualification Time (ms)');title('Qualification Time vs trial'); ylim([0 5000]); text(60,3200,['y=',num2str(p(1),3),'x + ',num2str(p(2),'%.0f')],'FontSize',14);
+    plot(1:120,f,'r','LineWidth',2);
+    xlabel('Trial'); ylabel('Qualification Time (ms)');title('Qualification Time vs trial'); ylim([0 5000]); text(60,700,['y = ',num2str(p(1),3),'x + ',num2str(p(2),'%.0f')],'FontSize',14);
 
 % figure; plot(nanmedian(qualTimeArray,2));
 end
@@ -126,7 +128,7 @@ for fly = 1:nFlies
     thisFly = FLIES(fly);
     nTrials = thisFly.nTrials;
     %matrix to put data separated by trial and sequence
-    %800 here assumes 4 seconds at 200 Hz
+    %endTrace here assumes 4 seconds at 200 Hz - needs to be less than 800 as loops a bit over 5ms
     tracesSEQ = zeros(endTrace,16,nTrials);
     
     %matrix to store fixation times (calculated for each epoch individually)
@@ -135,8 +137,6 @@ for fly = 1:nFlies
     RTB = zeros(nTrials,32);
     reQual = zeros(nTrials,32);
     saveArray = zeros(nTrials,12);    
-    %SCOTT: YOU CAN ADD A MATRIX FOR A NEW MEASURE HERE
-    %scottsMatrix = zeros(nTrials,16);
     
     % vector to index bad trials
     goodTrial = 0;
@@ -153,16 +153,16 @@ for fly = 1:nFlies
         % if the bar close to 0? SCOTT: CHECK WINDOW BOUNDS HERE
         window = [-windowRT windowRT];
         betweenBounds = thisTrace > window(1) & thisTrace <  window(2);
+        outsideMaxAngle = thisTrace > limitAngle & thisTrace <  -limitAngle;%thisTrace > limitAngle | thisTrace <  -limitAngle; turn on this feature
         
         %calculate fixTime
         if any(betweenBounds)
             loopRT = find(betweenBounds,1); %Loop index of first betweenbounds
             fixTimes(trial, seq) = thisFly.time(thisFly.closedLoopStart(trial)+loopRT-1)- thisFly.time(thisFly.closedLoopStart(trial)); %Time RT in ms
-            %fprintf('test %.0f,%0.f' , thisFly.time(thisFly.closedLoopStart(trial)),test);%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             saveArray(trial,8) = fixTimes(trial, seq);  %put fixtime in
             rtTrace = thisTrace(1:loopRT);
-            %disp(rtTrace);
-            if(loopRT + refixQualTime > endTrace)  
+            
+            if(loopRT + refixQualTime > endTrace)           % set up Refix Window time
                 reQualTrace = thisTrace(loopRT:endTrace);
             else
                 reQualTrace = thisTrace(loopRT:loopRT + refixQualTime);
@@ -179,9 +179,15 @@ for fly = 1:nFlies
                 saveArray(trial,12) = 1; %put 1 in bad trial and RTB (round the back)
             end
         else %did not even enter the window
+            if any(outsideMaxAngle)
+                RTB(trial, seq) = 1;
+                saveArray(trial,9) = 1;
+                saveArray(trial,11) = 1; %put 1 in bad trial and RTB (round the back)
+            else
+                timeOuts(trial, seq) = 1;
+                saveArray(trial,9:10) = 1;  %put 1 in bad trial and timeout
+            end
             badTrials(trial) = 1;
-            timeOuts(trial, seq) = 1;
-            saveArray(trial,9:10) = 1;  %put 1 in bad trial and timeout
         end
         
         if(fixTimes(trial, seq) > timeOut)
@@ -241,11 +247,26 @@ for fly = 1:nFlies
    
 end
 
-figure;
-create_seq_eff_plot([sum([FLIES.RTB],2) sum([FLIES.timeOuts],2) sum([FLIES.reQual],2)],[]);legend('MaxAngle Fail','Timeout Fails','Requal Fails','Location','northwest','FontSize',8); 
+%% Plot discarded trials vs Sequence
+figure;                 
+create_seq_eff_plot([sum([FLIES.RTB],2) sum([FLIES.timeOuts],2) sum([FLIES.reQual],2)],[]);
+legend('MaxAngle Fail','Timeout Fails','Requal Fails','Location','northeast','FontSize',8); 
+title('Discarded Trials vs Stimulus Sequence');
 
+%% make 4x4 histogram plot for each experiment
+if(enPlot4x4indiv)
+    load('binomial_x_labels_latex_alt_rep.mat','binomial_x_labels_latex');
 
-%% Analyse Badtrials
+    for fly = 1:length(FLIES)
+        figure;
+        for i = 1:16
+           subplot(4,4,i); histogram(FLIES(fly).fixTimes(logical(FLIES(fly).fixTimes(:,i)),i),10); 
+           title(binomial_x_labels_latex{seq}(ind_horiz));
+        end
+    end
+end
+
+%% Analyse Badtrials - get stats
 totalTrials = zeros(nFlies,5);
 for fly = 1:nFlies
     totalTrials(fly,1) = FLIES(fly).nTrials; 
@@ -261,7 +282,7 @@ numRTB = sum(totalTrials(fly,3));
 numreQual = sum(totalTrials(fly,4));
 numTimeout = sum(totalTrials(fly,5));
 
-fprintf('Total Trials %d Good Trials %d RTB %d ReQual Fails %d Timeouts %d',total(1),total(2),total(3),total(4),total(5));
+fprintf('Total Trials %d Good Trials %d RTB %d ReQual Fails %d Timeouts %d\n',total(1),total(2),total(3),total(4),total(5));
 
 %% Analyse Isomers
 medianRT = zeros(nFlies,4);
@@ -269,17 +290,7 @@ for fly = 1:nFlies
     Hist_Array_L = nonzeros(FLIES(fly).fixTimes32(:,1:16));
     Hist_Array_R = nonzeros(FLIES(fly).fixTimes32(:,17:32));
     Hist_Array_All = nonzeros(FLIES(fly).fixTimes32(:,:));
-%     figure;
-%    numBins = 25;
-%         subplot(2,2,1);
-%         histogram(Hist_Array_L,'NumBins', numBins);
-%         title('Left Isomer RT');
-%     subplot(2,2,2);
-%         histogram(Hist_Array_R,'NumBins', numBins);
-%         title('Right Isomer RT');
-%     subplot(2,2,3);
-%         histogram(Hist_Array_All,'NumBins', numBins);
-%         title('All RT');
+
     medianL = nanmedian(Hist_Array_L);        medianRT(fly,1) = medianL;%disp(medianL);
     medianR = nanmedian(Hist_Array_R);        medianRT(fly,2) = medianR;%disp(medianR);
     medianAll = nanmedian(Hist_Array_All);  medianRT(fly,3) = medianAll;%disp(medianAll);
@@ -307,7 +318,6 @@ if(enMedRT)
             title('Isomer Diff Median RT'); xlim([-600 600]);
 end    
 %% calculate SEs for each fly individually
-
 for fly = 1:nFlies
     
     R(fly) = calculateSEsBehav(FLIES(fly).fixTimes); %#ok<SAGROW>
@@ -318,10 +328,9 @@ for fly = 1:nFlies
     %plotIsomersBehav(FLIES(fly).fixTimes32);
     
     %SEAnovaBehav(FLIES(fly).fixTimes);
-     
 end
 %% Concatenate
-if(nFlies > 1)
+if(nFlies > 1)      % fails if only one fly
     %% calculate SEs for all flies using superfly method (concatenate)
     fixTimesAllFlies = cell(nFlies,1);
     fixTimesAllFlies32 = cell(nFlies,1);
@@ -333,17 +342,31 @@ if(nFlies > 1)
 
     fixTimesAllFlies = cell2mat(fixTimesAllFlies);
     fixTimesAllFlies32 = cell2mat(fixTimesAllFlies32);
+    
+    RAllFlies = calculateSEsBehav(fixTimesAllFlies);
+
+%    figure; create_seq_eff_plot(RAllFlies.meanFixTimes.',[],'errors',RAllFlies.semFixTimes.');
+    figure; create_seq_eff_plot(RAllFlies.medianFixTimes.',[],'errors',RAllFlies.semFixTimes.');title('SE super Median');
+
+    plotIsomersBehav(fixTimesAllFlies32);
+
+%     SEAnovaBehav(fixTimesAllFlies);
+
+%% Plots of Reaction time Left, Right, All and by sequence    
     if(enRT)
         % RT of all trials
-        RT_Hist_Array = nonzeros(fixTimesAllFlies(:,:));
-        RT_Hist_Array32 = nonzeros(fixTimesAllFlies32(:,:));
+        RT_Hist_Array = nonzeros(fixTimesAllFlies);
+        meanAll = nanmean(RT_Hist_Array); 
+        medianALL = nanmedian(RT_Hist_Array);
+        disp([' mean ',num2str(meanAll),' median ',num2str(medianALL)]);
+        RT_Hist_Array32 = nonzeros(fixTimesAllFlies32);
         RT_Hist_Array_Left = nonzeros(fixTimesAllFlies32(:,1:16));
         RT_Hist_Array_Right = nonzeros(fixTimesAllFlies32(:,17:32));
         
         RT_Hist_Array_Left_log = log10(RT_Hist_Array_Left);
         RT_Hist_Array_Right_log = log10(RT_Hist_Array_Right);
-%         [h,p] = ttest2(RT_Hist_Array_Left_log,RT_Hist_Array_Right_log);
-%         disp(['h ',h,' p ',p]);
+         [h,p] = ttest2(RT_Hist_Array_Left_log,RT_Hist_Array_Right_log);
+         disp(['h ',num2str(h),' p ',num2str(p)]);
         meanLeftLog = nanmean(RT_Hist_Array_Left_log); 
         medianLeftLog = nanmedian(RT_Hist_Array_Left_log);
         meanRightLog = nanmean(RT_Hist_Array_Right_log);
@@ -351,33 +374,32 @@ if(nFlies > 1)
         
 
          figure; histogram(RT_Hist_Array,'NumBins', 25); title('All RT');  xlabel('Time (ms)'); xlim([0,4200]);
-         figure; histogram(RT_Hist_Array_Left,'NumBins', 25); title('All RT 32');  xlabel('Time (ms)'); xlim([0,4200]);
-         figure; histogram(RT_Hist_Array_Right,'NumBins', 25); title('Left RT');  xlabel('Time (ms)'); xlim([0,4200]); 
+         figure; histogram(RT_Hist_Array_Left,'NumBins', 25,'facecolor',[0.4609 0.7070 0.7695]); title('Left RT');  xlabel('Time (ms)'); xlim([0,4200]);
+         figure; histogram(RT_Hist_Array_Right,'NumBins', 25,'facecolor',[0.9140 0.7109 0.4609]); title('Right RT');  xlabel('Time (ms)'); xlim([0,4200]); 
          
          figure('color','w','position',[10 10 1200 400]); 
-         subplot(1,2,1);histogram(RT_Hist_Array_Left_log,'NumBins', 25,'facecolor',[0.4609 0.7070 0.7695]); title('Left RT');  xlabel('Time (Log ms)'); ylim([0,90]); ylabel('Count'); xlim([2,4]);
+         subplot(1,2,1);histogram(RT_Hist_Array_Left_log,'NumBins', 25,'facecolor',[0.4609 0.7070 0.7695]); title('Left RT');  xlabel('Time (Log sec)'); ylim([0,90]); ylabel('Count'); xlim([2,4]);
          line([meanLeftLog,meanLeftLog],[0,90],'linewidth',2,'color','k','LineStyle','-'); text(3.3,85,['mean=',num2str(meanLeftLog,3)],'FontSize',14);
          line([medianLeftLog,medianLeftLog],[0,90],'linewidth',2,'color','r','LineStyle','--'); text(3.3,78,['median=',num2str(medianLeftLog,3)],'FontSize',14);
          legend('Left RT','mean','median','Location','northwest'); 
          
-         subplot(1,2,2); histogram(RT_Hist_Array_Right_log,'NumBins', 25,'facecolor',[0.9140 0.7109 0.4609]); title('Right RT');  xlabel('Time (Log ms)'); ylim([0,90]); ylabel('Count'); xlim([2,4]);
+         subplot(1,2,2); histogram(RT_Hist_Array_Right_log,'NumBins', 25,'facecolor',[0.9140 0.7109 0.4609]); title('Right RT');  xlabel('Time (Log sec)'); ylim([0,90]); ylabel('Count'); xlim([2,4]);
          line([meanRightLog,meanRightLog],[0,90],'linewidth',2,'color','k','LineStyle','-'); text(3.3,85,['mean=',num2str(meanRightLog,3)],'FontSize',14);
          line([medianRightLog,medianRightLog],[0,90],'linewidth',2,'color','r','LineStyle','--'); text(3.3,78,['median=',num2str(medianRightLog,3)],'FontSize',14);
          legend('Right RT','mean','median','Location','northwest'); 
         
-         
-         figure; histogram(RT_Hist_Array_Right_log,'NumBins', 25); title('Right RT');  xlabel('Time (ms)'); xlim([4,9]);
     end
     
-    RAllFlies = calculateSEsBehav(fixTimesAllFlies);
 
-%     figure; create_seq_eff_plot(RAllFlies.meanFixTimes.',[],'errors',RAllFlies.semFixTimes.');
-     figure; create_seq_eff_plot(RAllFlies.medianFixTimes.',[],'errors',RAllFlies.semFixTimes.');title('SE super Median');
-
-    plotIsomersBehav(fixTimesAllFlies32);
-
-%     SEAnovaBehav(fixTimesAllFlies);
-
+    if(enPlot4x4super)
+        load('binomial_x_labels_latex_alt_rep.mat','binomial_x_labels_latex');
+        ind_horiz = sub2ind(size(binomial_x_labels_latex{1}),1:4,[1 1 1 5]);
+        figure;
+        for seq = 1:16
+           subplot(4,4,seq); histogram(fixTimesAllFlies(logical(fixTimesAllFlies(:,seq)),seq),10,'NumBins', 16); xlim([0,4000]);ylim([0,40]);
+           title(binomial_x_labels_latex{seq}(ind_horiz));
+        end
+    end
     %% calculate SEs for all flies using averaging of profiles method (no weighting)
     allProfilesMean = zeros(nFlies,16);
     allProfilesMedian = zeros(nFlies,16);
@@ -415,5 +437,11 @@ if(nFlies > 1)
     figure; create_seq_eff_plot(nansum(allProfilesMean).'./sum(nFixTimesAllFlies),[],'errors',semFixTimesAllFlies.'); title('SE weighted Mean'); %ylim([0 1000]);
     figure; create_seq_eff_plot(nansum(allProfilesMedian).'./sum(nFixTimesAllFlies),[],'errors',semFixTimesAllFlies.');title('SE weighted Median');%ylim([0 1000]);
 
-    SEAnovaBehav(allProfilesMean);
+    figure;         % ANOVA
+    [P,ANOVATAB,STATS] = SEAnovaBehav(allProfilesMean);     %needs new function - allows looking at the data in the function
+    [c,m,h,nms] = multcompare(STATS);
+    
+    figure;         % Compare Ephys
+    load six_hertz.mat
+    create_seq_eff_plot(normalize([-six_hertz nansum(allProfilesMean).'./sum(nFixTimesAllFlies)]),[]); ylabel('Z score'); %title('Behaviour vs Ephys Profile'); 
 end
