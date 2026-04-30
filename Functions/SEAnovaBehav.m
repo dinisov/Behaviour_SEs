@@ -1,11 +1,11 @@
-function SEAnovaBehav(fixTimes)
+function [P,ANOVATAB,STATS] = SEAnovaBehav(fixTimes)
 %SEAnova Performs an ANOVA on SE data
 
     if any(isnan(fixTimes(:)))
-        anova1(fixTimes);
+        [P,ANOVATAB,STATS] = anova1(fixTimes);
     else
         fixTimes(~fixTimes) = NaN;
-        anova1(fixTimes);
+        [P,ANOVATAB,STATS] = anova1(fixTimes);
     end
         
 end

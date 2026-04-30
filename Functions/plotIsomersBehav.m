@@ -26,6 +26,12 @@ R2 = calculateSEsBehav(fixTimes2);
 figure; create_seq_eff_plot([R1.meanFixTimes.' R2.meanFixTimes.'],[],'errors',[R1.semFixTimes.' R2.semFixTimes.']);
 h = legend({'First Isomer','Second Isomer'});
 set(h,'FontSize',6);
+title('Mean isomer')
+
+figure; create_seq_eff_plot([R1.medianFixTimes.' R2.medianFixTimes.'],[],'errors',[R1.semFixTimes.' R2.semFixTimes.']);
+h = legend({'First Isomer','Second Isomer'});
+set(h,'FontSize',6);
+title('Median isomer')
 
 h = findobj(gca,'Type','ErrorBar');
 set(h(1),'color','r');

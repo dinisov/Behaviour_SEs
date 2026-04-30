@@ -1,0 +1,155 @@
+%Fixation Analysis
+% Generates a histogram and position vs time plot for all files in dir('./Fix')
+close all; clear;
+addpath('../Functions');
+
+%% Variables
+timeMin = 20;               % minimum time to include experiment
+% fixWindow = 20;             % +/- fixWindow means fixation
+divisions = 10;              % split learning period into this many divisions (Scott default: 10)
+timeDiv = 30000/divisions;  % time for each division in ms
+
+%% import data
+
+files = dir('./Fix');
+%files = dir('C:\Users\uqmvan13\ScottCode\LaraRecapitulation\SplitFix\SD');
+files = files(~[files.isdir],:);
+datas = cell(length(files),1);
+filenames = cell(length(files),1);
+for i = 1:length(files)
+    datas{i} = table2array(readtable(fullfile('Fix',files(i).name)));
+    %datas{i} = table2array(readtable(fullfile(files(i).folder,filesep,files(i).name)));
+    %disp(files(i).name);
+    disp([files(i).name, ' (' num2str( size(datas{i},1) ),' rows)'])
+    filenames{i} = files(i).name;
+end
+
+nFlies = length(datas);
+disp(nFlies);
+
+%% collate and organise data
+FLIES = struct;
+Results = nan(nFlies+2,divisions);
+plotData = zeros(divisions,3);
+plotSEM = zeros(divisions,3);
+
+fixWindow = [20, 30, 40];
+
+% different window sizes
+for w = 1:3
+    for fly = 1:nFlies
+    thisFlyData = datas{fly};
+    %Matt pre-cleaning of data to remove 'empty' entries seemingly present in Lara data
+    thisFlyData = thisFlyData( find(thisFlyData(:,1) ~= 0, 1, "first"):end, : );
+    %QA
+    if isempty(thisFlyData)
+        ['## Alert: Pre-cleaning has obliterated all data seemingly ##']
+        crash = yes
+    end
+    %Ancillary QA
+    if size(datas{fly},1) > 6000
+        ['-# Alert: Fix data overlong (Fly #',num2str(fly),'); Cannot currently analyse #-']
+        %This can be rectified by understanding more about div/etc
+        continue
+    end
+
+    numRows = length(thisFlyData);
+    %disp(numRows);
+    FixArray = zeros(3,divisions+1);
+
+    
+
+    % Check for start of flight
+    timeStart = thisFlyData(1,2);
+    rowStart = 1;
+    numZeros = 0;
+        for i = 1:numRows
+            if(thisFlyData(i,3)==0)
+                numZeros = numZeros +1;
+            else
+                if(numZeros > 100)
+                    timeStart = thisFlyData(i,2) ;
+                    rowStart = i;
+                end
+                numZeros = 0;
+            end
+        end
+    timeDelta = timeStart - thisFlyData(1,2);
+    %disp(timeDelta);
+    %disp(rowStart);
+    %lEF
+
+    % Get percentage of loops that pos is within +/-fixWindow for each division
+        for i = rowStart:numRows
+            timeRow = thisFlyData(i,2);
+            pos = thisFlyData(i,4);
+            timeDelta = timeRow - timeStart;
+            div = floor(1+((timeRow - timeStart)/timeDiv));
+            if(abs(pos) < fixWindow(w))
+                FixArray(1,div) = FixArray(1,div) +1;
+            else
+                FixArray(2,div) = FixArray(2,div) +1;
+            end
+        end
+
+        for i = 1:divisions % put data into results array
+            FixArray(3,i) = FixArray(1,i) + FixArray(2,i);
+            Results(fly,i) = FixArray(1,i)/(FixArray(1,i) + FixArray(2,i));
+        end
+        
+        FlightArray = thisFlyData(rowStart:numRows,4);
+        FLIES(fly).FlightArray = FlightArray;     % add to struct
+    end
+
+    %% analyse data (this assumes a sampling rate of 200 Hz)
+
+    for fly = 1:nFlies
+        meanFix = nanmean(Results);
+
+        stdFix = std(Results,[],1,'omitnan');
+        nFix = sum(~isnan(Results), 1);
+        semFix = stdFix ./ sqrt(nFix);
+    end
+    
+    % figure
+    % plot(meanFix); title ('Learning Fixation');
+
+    Results(nFlies+1,:) = meanFix;
+    Results(nFlies+2,:) = semFix;
+    
+    plotData(:,w) = meanFix.';
+    plotSEM(:,w) = semFix.';
+end
+
+
+%% Plot Combined
+figure; errorbar(repmat((3:3:30).',[1 3]),plotData,plotSEM); xlim([0 33]);
+set(gca,'xtick',3:3:30,'ytick',.3:.1:1,'yticklabel',30:10:100); ylabel('Bar Position within window (%)'); xlabel('time (s)'); title('Fixation vs Time'); legend('+/-20deg','+/-30deg','+/-40deg','Location','southeast','FontSize',14); 
+% ylim([0 1]);
+
+%% position Histogram of all data
+positionAllFlies = cell(nFlies,1);
+
+for fly = 1:nFlies
+    positionAllFlies{fly} = FLIES(fly).FlightArray;
+end
+
+positionAllFlies = cell2mat(positionAllFlies);
+
+% RT of all trials
+fiXPosArray = nonzeros(positionAllFlies(:,:));
+figure;histogram(fiXPosArray,'NumBins', 30); xlabel('Position (deg)'); xlim([-180 180]);%title('Bar Position During Learning');
+%title('Bar Position'); 
+temp = nansum(~isnan(Results(:,1))); %Calculate non-skipped N
+title(['Bar Position (N = ',num2str(temp),')']); 
+set(gca,'xtick',-180:30:180); 
+
+%% Save Data
+%{
+Folder = 'D:\group_vanswinderen\ScottCode\FIGOUT'%'C:\Experiments\';
+baseFilename = [num2str(fixWindow), '_deg_', num2str(divisions), '_div'];
+resultsFilenameCSV = [Folder,'Fix_Results_',baseFilename,'.csv'];
+writematrix(Results,resultsFilenameCSV);
+%}
+
+
